@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { SensayClient } from '@sensay/chat-client';
+import { supabase } from '../utils/supabase';
+import { fieldThemes } from '../utils/themes';
 
 function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedMentor, setSelectedMentor] = useState('general');
+  const [chatHistory, setChatHistory] = useState([]);
 
   const mentors = {
     general: 'General Academic Advisor',
@@ -14,8 +17,24 @@ function Chat() {
   };
 
   const sensayClient = new SensayClient({
-    apiKey: process.env.VITE_SENSAY_API_KEY
+    apiKey: import.meta.env.VITE_SENSAY_API_KEY
   });
+
+  useEffect(() => {
+    loadChatHistory();
+  }, [selectedMentor]);
+
+  const loadChatHistory = async () => {
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('*')
+      .eq('mentor_type', selectedMentor)
+      .order('created_at', { ascending: true });
+
+    if (data) {
+      setMessages(data);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -23,10 +42,19 @@ function Chat() {
     const newMessage = {
       text: input,
       sender: 'user',
-      timestamp: new Date().toISOString()
+      mentor_type: selectedMentor,
+      created_at: new Date().toISOString()
     };
 
-    setMessages([...messages, newMessage]);
+    const { data, error } = await supabase
+      .from('chat_history')
+      .insert([newMessage])
+      .select();
+
+    if (data) {
+      setMessages([...messages, data[0]]);
+    }
+
     setInput('');
 
     try {
@@ -35,20 +63,32 @@ function Chat() {
         persona: selectedMentor
       });
 
-      setMessages(msgs => [...msgs, {
+      const aiMessage = {
         text: response.text,
         sender: 'ai',
-        timestamp: new Date().toISOString()
-      }]);
+        mentor_type: selectedMentor,
+        created_at: new Date().toISOString()
+      };
+
+      const { data: aiData } = await supabase
+        .from('chat_history')
+        .insert([aiMessage])
+        .select();
+
+      if (aiData) {
+        setMessages(msgs => [...msgs, aiData[0]]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
 
+  const theme = fieldThemes[selectedMentor] || fieldThemes.general;
+
   return (
     <div className="pt-8 pb-24">
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4 border-b">
+      <div className={`bg-white rounded-lg shadow ${theme.accent}`}>
+        <div className={`p-4 border-b ${theme.secondary}`}>
           <select
             value={selectedMentor}
             onChange={(e) => setSelectedMentor(e.target.value)}
@@ -69,8 +109,8 @@ function Chat() {
               <div
                 className={`max-w-[75%] rounded-lg p-3 ${
                   message.sender === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
+                    ? theme.primary + ' text-white'
+                    : theme.secondary + ' ' + theme.text
                 }`}
               >
                 {message.text}
@@ -91,7 +131,7 @@ function Chat() {
             />
             <button
               onClick={sendMessage}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className={`px-4 py-2 ${theme.primary} text-white rounded-md hover:opacity-90`}
             >
               Send
             </button>
@@ -102,4 +142,4 @@ function Chat() {
   );
 }
 
-export default Chat
+export default Chat;
