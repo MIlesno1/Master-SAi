@@ -2,19 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { SensayClient } from '@sensay/chat-client';
 import { supabase } from '../utils/supabase';
 import { fieldThemes } from '../utils/themes';
+import { academicFields } from '../utils/fields';
 
 function Chat() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedMentor, setSelectedMentor] = useState('general');
   const [chatHistory, setChatHistory] = useState([]);
-
-  const mentors = {
-    general: 'General Academic Advisor',
-    cs: 'Computer Science Expert',
-    engineering: 'Engineering Master',
-    science: 'Science Specialist'
-  };
 
   const sensayClient = new SensayClient({
     apiKey: import.meta.env.VITE_SENSAY_API_KEY
@@ -83,7 +77,7 @@ function Chat() {
     }
   };
 
-  const theme = fieldThemes[selectedMentor] || fieldThemes.general;
+  const theme = fieldThemes[selectedMentor] || fieldThemes.default;
 
   return (
     <div className="pt-8 pb-24">
@@ -94,7 +88,7 @@ function Chat() {
             onChange={(e) => setSelectedMentor(e.target.value)}
             className="w-full rounded-md border-gray-300"
           >
-            {Object.entries(mentors).map(([key, value]) => (
+            {Object.entries(academicFields).map(([key, value]) => (
               <option key={key} value={key}>{value}</option>
             ))}
           </select>
